@@ -59,6 +59,7 @@ volatile uint16_t gu16_TIM10_OVC = 0;
 volatile uint32_t gu32_Freq = 0;
 
 char init_msg[100];
+char test_msg[100];
 
 TCS3200 tcs;
 /* USER CODE END PV */
@@ -126,7 +127,8 @@ int main(void)
 		tcs.green=TCS3200_Read_Color(&tcs,TCS3200_GREEN);
 		tcs.blue=TCS3200_Read_Color(&tcs,TCS3200_BLUE);
 
-		TCS3200_Display_Colors(tcs);
+		//TCS3200_Display_Colors(tcs);
+		TCS3200_Detected_Color(tcs);
 
 
 
@@ -193,6 +195,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 			gu32_T1 = TIM10->CCR1;
 			gu16_TIM10_OVC = 0;
 			gu8_State = DONE;
+
 		}
 		else if((gu8_State == DONE)&(tcs.check_freq==1))
 		{
