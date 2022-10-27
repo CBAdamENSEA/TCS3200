@@ -69,8 +69,6 @@ void Error_Handler(void);
 #define FMC_NBL1_GPIO_Port GPIOE
 #define FMC_NBL0_Pin GPIO_PIN_0
 #define FMC_NBL0_GPIO_Port GPIOE
-#define OUT_Pin GPIO_PIN_8
-#define OUT_GPIO_Port GPIOB
 #define ULPI_D7_Pin GPIO_PIN_5
 #define ULPI_D7_GPIO_Port GPIOB
 #define ARDUINO_PWM_D3_Pin GPIO_PIN_4

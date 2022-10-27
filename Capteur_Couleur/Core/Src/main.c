@@ -123,9 +123,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-		tcs.red=TCS3200_Read_Color(&tcs,TCS3200_RED);
-		tcs.green=TCS3200_Read_Color(&tcs,TCS3200_GREEN);
-		tcs.blue=TCS3200_Read_Color(&tcs,TCS3200_BLUE);
+		tcs.red=TCS3200_Read_Color(&tcs,FILTER_RED);
+		tcs.green=TCS3200_Read_Color(&tcs,FILTER_GREEN);
+		tcs.blue=TCS3200_Read_Color(&tcs,FILTER_BLUE);
 
 		//TCS3200_Display_Colors(tcs);
 		TCS3200_Detected_Color(tcs);
@@ -190,14 +190,14 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM10)
 	{
-		if((gu8_State == IDLE)&(tcs.check_freq==1))
+		if((gu8_State == IDLE)&(tcs.freq_available==1))
 		{
 			gu32_T1 = TIM10->CCR1;
 			gu16_TIM10_OVC = 0;
 			gu8_State = DONE;
 
 		}
-		else if((gu8_State == DONE)&(tcs.check_freq==1))
+		else if((gu8_State == DONE)&(tcs.freq_available==1))
 		{
 			gu32_T2 = TIM10->CCR1;
 			gu32_Ticks = (gu32_T2 + (gu16_TIM10_OVC * 65535)) - gu32_T1;
@@ -206,7 +206,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 			{
 				//sprintf(freq_msg, "Frequency = %lu Hz\r\n",gu32_Freq);
 				//HAL_UART_Transmit(&huart1,freq_msg,strlen(freq_msg), HAL_MAX_DELAY);
-				tcs.check_freq=0;
+				tcs.freq_available=0;
 			}
 			gu8_State = IDLE;
 		}

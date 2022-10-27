@@ -17,45 +17,31 @@ char display_msg[100];
 extern uint32_t freq;
 extern uint8_t check_freq;
 
-uint8_t TCS3200_Enable(uint8_t state)
+uint8_t TCS3200_Enable(GPIO_PinState state)
 {
-	if (state)
-	{
-		HAL_GPIO_WritePin(OE_GPIO_Port, OE_Pin, GPIO_PIN_RESET); // To enable the sensor
-	}
-	else
-	{
-		HAL_GPIO_WritePin(OE_GPIO_Port, OE_Pin, GPIO_PIN_SET); // To disable the sensor
-	}
+	HAL_GPIO_WritePin(OE_GPIO_Port, OE_Pin, state); // To enable the sensor
 	return state;
 }
 
-uint8_t TCS3200_LED_Enable(uint8_t led_state)
+uint8_t TCS3200_LED_Enable(GPIO_PinState led_state)
 {
-	if (led_state)
-	{
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_SET); // To enable the led
-	}
-	else
-	{
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET); // To disable the led
-	}
+	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, led_state); // To enable the led
 	return led_state;
 }
 
-uint8_t TCS3200_Set_Scale(uint8_t fo_scale)
+TCS3200_fo_t TCS3200_Set_Scale(TCS3200_fo_t fo_scale)
 {
 	switch(fo_scale)
 	{
-	case TCS3200_fo2:
+	case SCALE_FO_2:
 		HAL_GPIO_WritePin(S0_GPIO_Port, S0_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(S1_GPIO_Port, S1_Pin, GPIO_PIN_SET);
 		break;
-	case TCS3200_fo20:
+	case SCALE_FO_20:
 		HAL_GPIO_WritePin(S0_GPIO_Port, S0_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(S1_GPIO_Port, S1_Pin, GPIO_PIN_RESET);
 		break;
-	case TCS3200_fo100:
+	case SCALE_FO_100:
 		HAL_GPIO_WritePin(S0_GPIO_Port, S0_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(S1_GPIO_Port, S1_Pin, GPIO_PIN_SET);
 		break;
@@ -67,19 +53,19 @@ uint8_t TCS3200_Set_Scale(uint8_t fo_scale)
 	return fo_scale;
 }
 
-uint8_t TCS3200_Set_Filter(uint8_t filter)
+TCS3200_filter_t TCS3200_Set_Filter(TCS3200_filter_t filter)
 {
 	switch(filter)
 	{
-	case TCS3200_RED:
+	case FILTER_RED:
 		HAL_GPIO_WritePin(S2_GPIO_Port, S2_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(S3_GPIO_Port, S3_Pin, GPIO_PIN_RESET);
 		break;
-	case TCS3200_GREEN:
+	case FILTER_GREEN:
 		HAL_GPIO_WritePin(S2_GPIO_Port, S2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(S3_GPIO_Port, S3_Pin, GPIO_PIN_SET);
 		break;
-	case TCS3200_BLUE:
+	case FILTER_BLUE:
 		HAL_GPIO_WritePin(S2_GPIO_Port, S2_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(S3_GPIO_Port, S3_Pin, GPIO_PIN_SET);
 		break;
@@ -93,68 +79,69 @@ uint8_t TCS3200_Set_Filter(uint8_t filter)
 
 void TCS3200_Init(TCS3200 *tcs)
 {
-	tcs->state=TCS3200_Enable(TCS3200_ENABLE); // To enable the sensor
+	tcs->state=TCS3200_Enable(GPIO_PIN_RESET); // To enable the sensor (low active)
 	HAL_Delay(100); // Not necessary
-	tcs->filter=TCS3200_Set_Filter(TCS3200_CLEAR);
-	tcs->fo_scale=TCS3200_Set_Scale(TCS3200_fo100);
-	tcs->led_state=TCS3200_LED_Enable(TCS3200_DISABLE);
+	tcs->filter=TCS3200_Set_Filter(FILTER_CLEAR);
+	tcs->fo_scale=TCS3200_Set_Scale(SCALE_FO_100);
+	tcs->led_state=TCS3200_LED_Enable(GPIO_PIN_RESET);
 	tcs->red=0;
 	tcs->green=0;
 	tcs->blue=0;
 	tcs->freq=0;
-	tcs->check_freq=0;
+	tcs->freq_available=0;
+
 }
 
-uint8_t TCS3200_Calibration(uint8_t color,uint32_t freq)
+uint8_t TCS3200_Calibration(TCS3200_filter_t filter,uint32_t freq)
 {
-	uint8_t Output_Color;
-	switch (color){
-	case TCS3200_RED:
-		Output_Color = (255.0/(MAX_RED-MIN_RED))*(freq-MIN_RED);
+	uint8_t filter_output;
+	switch (filter){
+	case FILTER_RED:
+		filter_output = (255.0/(MAX_RED-MIN_RED))*(freq-MIN_RED);
 		break;
-	case TCS3200_GREEN:
-		Output_Color = (255.0/(MAX_GREEN-MIN_GREEN))*(freq-MIN_GREEN);
+	case FILTER_GREEN:
+		filter_output = (255.0/(MAX_GREEN-MIN_GREEN))*(freq-MIN_GREEN);
 		break;
-	case TCS3200_BLUE:
-		Output_Color = (255.0/(MAX_RED-MIN_BLUE))*(freq-MIN_BLUE);
+	case FILTER_BLUE:
+		filter_output = (255.0/(MAX_RED-MIN_BLUE))*(freq-MIN_BLUE);
 		break;
 	}
-	if (Output_Color > 255) Output_Color = 255;
-	if (Output_Color < 0) Output_Color = 0;
-	return Output_Color;
+	if (filter_output > 255) filter_output = 255;
+	if (filter_output < 0) filter_output = 0;
+	return filter_output;
 }
 
-void TCS3200_Display_Frequency(uint8_t color,uint32_t freq)
+void TCS3200_Display_Frequency(TCS3200_filter_t filter,uint32_t freq)
 {
-	switch (color){
-	case TCS3200_RED:
+	switch (filter){
+	case FILTER_RED:
 		sprintf(display_msg, "RED = %lu Hz\r\n",freq);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
-	case TCS3200_GREEN:
+	case FILTER_GREEN:
 		sprintf(display_msg, "GREEN = %lu Hz\r\n",freq);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
-	case TCS3200_BLUE:
+	case FILTER_BLUE:
 		sprintf(display_msg, "BLUE = %lu Hz\r\n",freq);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
 	}
 }
 
-void TCS3200_Display_Color(uint8_t color,uint8_t Output_Color)
+void TCS3200_Display_Color(TCS3200_filter_t filter,uint8_t filter_output)
 {
-	switch (color){
-	case TCS3200_RED:
-		sprintf(display_msg, "RED = %u \r\n",Output_Color);
+	switch (filter){
+	case FILTER_RED:
+		sprintf(display_msg, "RED = %u \r\n",filter_output);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
-	case TCS3200_GREEN:
-		sprintf(display_msg, "GREEN = %u \r\n",Output_Color);
+	case FILTER_GREEN:
+		sprintf(display_msg, "GREEN = %u \r\n",filter_output);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
-	case TCS3200_BLUE:
-		sprintf(display_msg, "BLUE = %u \r\n",Output_Color);
+	case FILTER_BLUE:
+		sprintf(display_msg, "BLUE = %u \r\n",filter_output);
 		HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 		break;
 	}
@@ -170,39 +157,43 @@ void TCS3200_Detected_Color(TCS3200 tcs)
 {
 	if ((tcs.red>tcs.green)&(tcs.red>tcs.blue))
 	{
-		sprintf(display_msg, "RED\r\n",tcs.red,tcs.green,tcs.blue);
+		sprintf(display_msg, "RED\r\n");
 	}
 	else if ((tcs.green>tcs.red)&(tcs.green>tcs.blue))
 	{
-		sprintf(display_msg, "GREEN\r\n",tcs.red,tcs.green,tcs.blue);
+		sprintf(display_msg, "GREEN\r\n");
 	}
 	else if ((tcs.blue>tcs.green)&(tcs.blue>tcs.red))
 	{
-		sprintf(display_msg, "BLUE\r\n",tcs.red,tcs.green,tcs.blue);
+		sprintf(display_msg, "BLUE\r\n");
 	}
 	else
 	{
-		sprintf(display_msg, "No color\r\n",tcs.red,tcs.green,tcs.blue);
+		sprintf(display_msg, "No color\r\n");
 	}
 	HAL_UART_Transmit(&huart1,display_msg,strlen(display_msg), HAL_MAX_DELAY);
 }
 
-uint8_t TCS3200_Read_Color(TCS3200 *tcs,uint8_t color)
+uint8_t TCS3200_Read_Color(TCS3200 *tcs,TCS3200_filter_t filter)
 {
-	uint8_t Output_Color;
-	uint8_t clear;
+	uint8_t filter_output;
+	TCS3200_filter_t clear;
+
 	HAL_TIM_Base_Start_IT(&htim10);
 	HAL_TIM_IC_Start_IT(&htim10, TIM_CHANNEL_1);
-	tcs->led_state=TCS3200_LED_Enable(TCS3200_ENABLE);
-	tcs->filter=TCS3200_Set_Filter(color);
+
+
+	tcs->led_state=TCS3200_LED_Enable(GPIO_PIN_SET);
+	tcs->filter=TCS3200_Set_Filter(filter);
 	HAL_Delay(100);
-	tcs->check_freq=1; //So that the input capture timer can start calculating the frequency
-	while(tcs->check_freq); // Wait until the frequency is calculated
-	tcs->led_state=TCS3200_LED_Enable(TCS3200_DISABLE);
-	clear=TCS3200_Set_Filter(TCS3200_CLEAR);
+	tcs->freq_available=1; //So that the input capture timer can start calculating the frequency
+	while(tcs->freq_available); // Wait until the frequency is calculated
+	tcs->led_state=TCS3200_LED_Enable(GPIO_PIN_RESET);
+	clear=TCS3200_Set_Filter(FILTER_CLEAR);
+
 	HAL_TIM_IC_Stop_IT(&htim10, TIM_CHANNEL_1);
 	HAL_TIM_Base_Stop_IT(&htim10);
-	Output_Color=TCS3200_Calibration(tcs->filter,tcs->freq);
+	filter_output=TCS3200_Calibration(tcs->filter,tcs->freq);
 	//TCS3200_Display_Frequency(tcs->filter,tcs->freq);
-	return Output_Color;
+	return filter_output;
 }
